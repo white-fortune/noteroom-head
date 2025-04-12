@@ -10,7 +10,7 @@ const votesSchema = new mongoose_1.Schema({
     noteDocID: {
         type: mongoose_1.Schema.Types.ObjectId,
         required: true,
-        ref: "notes"
+        ref: "posts"
     },
     voterStudentDocID: {
         type: mongoose_1.Schema.Types.ObjectId,

@@ -5,11 +5,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = authApiRouter;
 const express_1 = require("express");
+const google_auth_library_1 = require("google-auth-library");
 const authService_1 = require("../services/authService");
 const utils_1 = require("../services/utils");
 const lodash_1 = require("lodash");
 const logger_1 = __importDefault(require("../logger"));
 const router = (0, express_1.Router)();
+const googleClient = new google_auth_library_1.OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 function authApiRouter(io) {
     router.post("/signup", async (req, res) => {
         try {
@@ -84,6 +87,9 @@ function authApiRouter(io) {
                             res.json({ ok: false, message: "Wrong Password!" });
                         }
                     }
+                    else if (student["authProvider"] === "google") {
+                        res.json({ ok: false, message: "Invalid login method. Try using Google login" });
+                    }
                 }
                 else {
                     if (response.code === "NO_EMAIL") {
@@ -122,6 +128,81 @@ function authApiRouter(io) {
         catch (error) {
             logger_1.default.error(`(/session): Failed to get user auth of studentID=${req.session["stdid"] || '--studentID--'}: ${error}`);
             res.json({ ok: false });
+        }
+    });
+    router.post('/google', async (req, res) => {
+        try {
+            const { credential } = req.body;
+            if (!credential)
+                return;
+            const ticket = await googleClient.verifyIdToken({
+                idToken: credential,
+                audience: GOOGLE_CLIENT_ID,
+            });
+            const payload = ticket.getPayload();
+            const email = payload.email;
+            const displayName = payload.name;
+            logger_1.default.info(`(/auth/google): Google login attempt - email=${email}`);
+            const existingUser = await (0, authService_1.getUserVarification)(email);
+            if (existingUser.ok) {
+                const student = existingUser.data;
+                if (student.authProvider !== "google") {
+                    return res.json({
+                        ok: false,
+                        message: "This email is registered with another method. Try NoteRoom login",
+                    });
+                }
+                req.session.regenerate(() => {
+                    req.session["stdid"] = student["studentID"];
+                    return res.json({
+                        ok: true,
+                        userAuth: {
+                            studentID: student["studentID"],
+                            username: student["username"],
+                        },
+                    });
+                });
+                return;
+            }
+            const identifier = (0, utils_1.generateRandomUsername)(displayName.trim());
+            const newUser = {
+                displayname: displayName,
+                email: email,
+                password: null,
+                studentID: identifier.userID,
+                username: identifier.username,
+                authProvider: "google",
+                onboarded: false,
+            };
+            const response = await (0, authService_1.addUserProfile)(newUser);
+            if (response.ok) {
+                const user = response.data;
+                req.session.regenerate(() => {
+                    req.session["stdid"] = user["studentID"];
+                    logger_1.default.info(`(/auth/google): Created & logged in user: ${email}`);
+                    res.json({
+                        ok: true,
+                        userAuth: {
+                            studentID: user["studentID"],
+                            username: user["username"],
+                        },
+                    });
+                });
+            }
+            else {
+                logger_1.default.error(`(/auth/google): Failed to create user ${email}: ${response.error}`);
+                res.json({
+                    ok: false,
+                    message: "Something went wrong while creating your account.",
+                });
+            }
+        }
+        catch (error) {
+            logger_1.default.error(`(/auth/google): Login failed: ${error}`);
+            res.json({
+                ok: false,
+                message: "Google authentication failed. Please try again.",
+            });
         }
     });
     return router;

@@ -23,15 +23,14 @@ async function compressImage(fileObject) {
         return fileObject;
     }
 }
-async function processBulkCompressUpload(files, noteDocID) {
+async function processBulkCompressUpload(fileObjects, postID) {
     try {
-        let fileObjects = Object.values(files);
         let compressedFiles = await Promise.all(fileObjects.map(fileObject => compressImage(fileObject)));
-        let uploadedFiles = await Promise.all(compressedFiles.map(compressedFile => (0, firebaseService_1.upload)(compressedFile, `posts/${noteDocID.toString()}/contents/${compressedFile["name"]}`)));
-        return uploadedFiles;
+        let uploadedFiles = await Promise.all(compressedFiles.map(compressedFile => (0, firebaseService_1.upload)(compressedFile, `posts/${postID}/contents/${compressedFile["fileName"]}`)));
+        return { ok: true, content: uploadedFiles };
     }
     catch (error) {
-        return [];
+        return { ok: false, error: error };
     }
 }
 function generateRandomUsername(displayname) {

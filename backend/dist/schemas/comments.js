@@ -10,7 +10,7 @@ const CommentsSchema = new mongoose_1.Schema({
     noteDocID: {
         type: mongoose_1.Schema.Types.ObjectId,
         required: true,
-        ref: 'notes'
+        ref: 'posts'
     },
     feedbackContents: {
         type: String,

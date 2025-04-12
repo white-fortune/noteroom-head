@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.upload = void 0;
+exports.deleteFile = exports.upload = void 0;
 const path_1 = require("path");
 const dotenv_1 = require("dotenv");
 const firebase_admin_1 = __importDefault(require("firebase-admin"));
@@ -32,4 +32,18 @@ async function uploadImage(fileObject, fileName) {
         return null;
     }
 }
+async function deleteImage(postID) {
+    try {
+        const [files] = await bucket.getFiles({ prefix: `posts/${postID}/contents/` });
+        if (files.length === 0)
+            return { ok: true };
+        const deletePromise = files.map(file => file.delete());
+        await Promise.all(deletePromise);
+        return { ok: true };
+    }
+    catch (error) {
+        return { ok: false, error: error };
+    }
+}
 exports.upload = uploadImage;
+exports.deleteFile = deleteImage;

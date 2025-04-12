@@ -19,6 +19,8 @@ const cors_1 = __importDefault(require("cors"));
 const connect_mongo_1 = __importDefault(require("connect-mongo"));
 const { create } = connect_mongo_1.default;
 const chalk_1 = __importDefault(require("chalk"));
+const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
+const swaggerOptions_1 = __importDefault(require("./swaggers/swaggerOptions"));
 const post_js_1 = __importDefault(require("./services/apis/post.js"));
 const feed_js_1 = __importDefault(require("./services/apis/feed.js"));
 const search_js_1 = __importDefault(require("./services/apis/search.js"));
@@ -33,9 +35,12 @@ const server = (0, http_1.createServer)(app);
 const io = new socket_io_1.Server(server, { cors: { origin: '*' } });
 const url = (process.env.DEVELOPMENT && process.env.DEVELOPMENT === "true") ? process.env.MONGO_URI_DEV : process.env.MONGO_URI;
 (0, mongoose_1.connect)(url).then(() => {
+    console.log(chalk_1.default.cyan(`[-] development mode: ${chalk_1.default.yellow(process.env.DEVELOPMENT)}`));
     if (process.env.DEVELOPMENT && process.env.DEVELOPMENT === "true") {
-        console.log(chalk_1.default.cyan(`[-] development mode: ${chalk_1.default.yellow(process.env.DEVELOPMENT)}`));
         console.log(chalk_1.default.cyan(`[-] using local mongodb: ${chalk_1.default.yellow(url)}`));
+    }
+    else {
+        console.log(chalk_1.default.cyan(`[-] using remote mongodb: ${chalk_1.default.yellow(url)}`));
     }
 });
 const port = process.env.PORT;
@@ -45,6 +50,7 @@ app.use((0, cors_1.default)({
     origin: allowedHosts,
     credentials: true
 }));
+app.use(express_1.default.json());
 app.use(express_1.default.static(staticPath));
 app.use(urlencoded({ extended: true }));
 app.use((0, express_session_1.default)({
@@ -63,6 +69,7 @@ app.use((0, express_session_1.default)({
 }));
 app.use((0, cookie_parser_1.default)());
 app.use((0, express_fileupload_1.default)());
+app.use('/api-docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerOptions_1.default));
 app.use('/api/users', (0, profile_js_1.default)(io));
 app.use('/api/posts', (0, post_js_1.default)(io));
 app.use('/api/notifications', (0, notifications_js_1.default)(io));
@@ -83,6 +90,9 @@ app.get('/logout', (req, res) => {
     catch (error) {
         res.json({ ok: false });
     }
+});
+app.get("/support", (req, res) => {
+    res.sendFile((0, path_1.join)(staticPath, "support.html"));
 });
 app.get("*", (req, res) => {
     res.sendFile((0, path_1.join)(staticPath, 'index.html'));

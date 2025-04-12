@@ -85,27 +85,27 @@ const studentsSchema = new mongoose_1.Schema({
     },
     owned_notes: {
         type: [mongoose_1.Schema.Types.ObjectId],
-        ref: 'notes',
+        ref: 'posts',
         default: []
     },
     owned_posts: {
         type: [mongoose_1.Schema.Types.ObjectId],
-        ref: 'notes',
+        ref: 'posts',
         default: []
     },
     saved_notes: {
         type: [mongoose_1.Schema.Types.ObjectId],
-        ref: 'notes',
+        ref: 'posts',
         default: []
     },
     featured_notes: {
         type: [mongoose_1.Schema.Types.ObjectId],
-        ref: 'notes',
+        ref: 'posts',
         default: []
     },
     downloaded_notes: {
         type: [mongoose_1.Schema.Types.ObjectId],
-        ref: 'notes',
+        ref: 'posts',
         default: []
     },
     badges: {

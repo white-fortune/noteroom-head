@@ -1,23 +1,88 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.addPost = addPost;
+exports.deletePost = deletePost;
 exports.getPosts = getPosts;
 exports.getSinglePost = getSinglePost;
 exports.addSavePost = addSavePost;
 exports.deleteSavedPost = deleteSavedPost;
 exports.getSavedPosts = getSavedPosts;
 exports.searchPosts = searchPosts;
-const notes_1 = __importDefault(require("../../schemas/notes"));
+const notes_1 = __importStar(require("../../schemas/notes"));
 const students_1 = __importDefault(require("../../schemas/students"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const voteService_1 = require("./voteService");
-async function addPost(noteData) {
-    let note = await notes_1.default.create(noteData);
-    await students_1.default.findByIdAndUpdate(noteData.ownerDocID, { $push: { owned_notes: note._id } }, { upsert: true, new: true });
-    return note;
+const notes_2 = require("../../schemas/notes");
+const firebaseService_1 = require("./firebaseService");
+async function addPost(postData, postType) {
+    try {
+        let post = null;
+        if (postType === notes_2.PostType.CONTENT) {
+            post = await notes_1.contentsModel.create(postData);
+        }
+        else if (postType === notes_2.PostType.MCQ) {
+            post = await notes_1.mcqsModel.create(postData);
+        }
+        if (post) {
+            await students_1.default.findByIdAndUpdate(postData.ownerDocID, { $push: { owned_notes: post._id } }, { upsert: true, new: true });
+            return { ok: true, postID: post._id };
+        }
+        else {
+            return { ok: false };
+        }
+    }
+    catch (error) {
+        return { ok: false, error: error };
+    }
+}
+async function deletePost(postID, postType) {
+    try {
+        switch (postType) {
+            case notes_2.PostType.CONTENT:
+                await notes_1.default.deleteOne({ postID: postID });
+                const fileDeleteResponse = await (0, firebaseService_1.deleteFile)(postID);
+                return { ok: fileDeleteResponse.ok, code: !fileDeleteResponse.ok ? "FILE_DELETE_FAIL" : null };
+        }
+    }
+    catch (error) {
+        return { ok: false, error: error };
+    }
 }
 async function isSaved({ studentDocID, noteDocID }) {
     let document = await students_1.default.find({ $and: [
@@ -29,7 +94,7 @@ async function isSaved({ studentDocID, noteDocID }) {
 }
 async function getPosts(studentDocID, options) {
     let notes = await notes_1.default.aggregate([
-        { $match: { completed: { $eq: true }, type_: "public" } },
+        { $match: { completed: { $eq: true }, visibility: "public", postType: notes_2.PostType.CONTENT } },
         { $lookup: {
                 from: 'students',
                 localField: 'ownerDocID',
@@ -58,7 +123,7 @@ async function getPosts(studentDocID, options) {
                 title: 1, description: 1,
                 feedbackCount: 1, upvoteCount: 1,
                 postType: 1, content: 1, randomSort: 1,
-                createdAt: 1, pinned: 1,
+                createdAt: 1, pinned: 1, postID: 1,
                 "ownerDocID._id": 1,
                 "ownerDocID.profile_pic": 1,
                 "ownerDocID.displayname": 1,
@@ -97,7 +162,7 @@ async function getSinglePost(noteDocID, studentDocID, options) {
                         title: 1, description: 1,
                         feedbackCount: 1, upvoteCount: 1,
                         postType: 1, content: 1, randomSort: 1,
-                        createdAt: 1, pinned: 1,
+                        createdAt: 1, pinned: 1, postID: 1,
                         "ownerDocID._id": 1,
                         "ownerDocID.profile_pic": 1,
                         "ownerDocID.displayname": 1,
@@ -117,8 +182,15 @@ async function getSinglePost(noteDocID, studentDocID, options) {
             return { ok: true, noteData: { ...note, isUpvoted, isSaved: _isSaved } };
         }
         else {
-            let images = (await notes_1.default.findById(noteDocID, { content: 1 })).content;
-            return { ok: true, images: images };
+            let post = (await notes_1.default.findById(noteDocID))?.toObject();
+            if (post) {
+                if (post["content"] && post["content"].length !== 0) {
+                    return { ok: true, images: post["content"] };
+                }
+                else {
+                    return { ok: true, images: [] };
+                }
+            }
         }
     }
     catch (error) {
@@ -150,7 +222,7 @@ async function getSavedPosts(studentID) {
         let posts = await notes_1.default.aggregate([
             { $match: { _id: { $in: postsIDs } } },
             { $project: {
-                    noteID: "$_id",
+                    noteID: "$postID",
                     noteTitle: "$title",
                     noteThumbnail: { $first: '$content' },
                 } }
