@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compressImage = compressImage;
 exports.processBulkCompressUpload = processBulkCompressUpload;
+exports.processBuikPDFUpload = processBuikPDFUpload;
 exports.generateRandomUsername = generateRandomUsername;
 const sharp_1 = __importDefault(require("sharp"));
 const firebaseService_1 = require("./firebaseService");
@@ -28,6 +29,26 @@ async function processBulkCompressUpload(fileObjects, postID) {
         let compressedFiles = await Promise.all(fileObjects.map(fileObject => compressImage(fileObject)));
         let uploadedFiles = await Promise.all(compressedFiles.map(compressedFile => (0, firebaseService_1.upload)(compressedFile, `posts/${postID}/contents/${compressedFile["fileName"]}`)));
         return { ok: true, content: uploadedFiles };
+    }
+    catch (error) {
+        return { ok: false, error: error };
+    }
+}
+async function processBuikPDFUpload(fileObjects, postID) {
+    try {
+        let files = [];
+        let failedUploads = [];
+        await Promise.all(fileObjects.map(async (file) => {
+            const publicUrl = await (0, firebaseService_1.upload)(file, `posts/${postID}/contents/${file["fileName"]}`);
+            if (publicUrl) {
+                const name = file.name;
+                files.push({ name: name, storageUrl: publicUrl });
+            }
+            else {
+                failedUploads.push(file.name);
+            }
+        }));
+        return { ok: true, files: files, failedUploads: failedUploads };
     }
     catch (error) {
         return { ok: false, error: error };

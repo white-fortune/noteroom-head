@@ -105,11 +105,12 @@ mcqsSchema.pre("save", function (next) {
 const mcqsModel = notesModel.discriminator(PostType.MCQ, mcqsSchema);
 exports.mcqsModel = mcqsModel;
 const linksSchema = new mongoose_1.Schema({
-    links: [{
-            _id: false,
-            type: String,
-            required: true
-        }]
+    links: [String]
+});
+linksSchema.pre("save", function (next) {
+    const doc = this;
+    doc.completed = true;
+    next();
 });
 const linksModel = notesModel.discriminator(PostType.LINK, linksSchema);
 exports.linksModel = linksModel;

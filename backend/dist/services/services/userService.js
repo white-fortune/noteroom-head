@@ -7,6 +7,7 @@ exports.Convert = void 0;
 exports.getProfile = getProfile;
 exports.getMutualCollegeStudents = getMutualCollegeStudents;
 exports.searchStudent = searchStudent;
+exports.updateProfileFields = updateProfileFields;
 const students_1 = __importDefault(require("../../schemas/students"));
 const mongoose_1 = __importDefault(require("mongoose"));
 exports.Convert = {
@@ -78,22 +79,29 @@ async function getProfile(username) {
     try {
         let student = await students_1.default.aggregate([
             { $match: { username: username } },
-            { $addFields: {
+            {
+                $addFields: {
                     featuredNoteCount: { $size: "$featured_notes" }
-                } },
-            { $lookup: {
+                }
+            },
+            {
+                $lookup: {
                     from: "posts",
                     localField: "owned_notes",
                     foreignField: "_id",
                     as: "owned_posts"
-                } },
-            { $lookup: {
+                }
+            },
+            {
+                $lookup: {
                     from: 'badges',
                     localField: 'badges',
                     foreignField: 'badgeID',
                     as: 'badges'
-                } },
-            { $project: {
+                }
+            },
+            {
+                $project: {
                     _id: 0,
                     username: 1, displayname: 1, group: 1,
                     profile_pic: 1, bio: 1, collegeID: 1, collegeyear: 1,
@@ -110,7 +118,8 @@ async function getProfile(username) {
                             }
                         }
                     }
-                } }
+                }
+            }
         ]);
         if (student.length === 0)
             return { ok: false };
@@ -136,14 +145,16 @@ async function getMutualCollegeStudents(studentDocID, options) {
             { $match: { collegeID: collegeID, visibility: "public", _id: { $ne: new mongoose_1.default.Types.ObjectId(studentDocID) } } },
             { $skip: options.skip },
             { $limit: options.count },
-            { $project: {
+            {
+                $project: {
                     profile_pic: 1,
                     displayname: 1,
                     bio: 1,
                     username: 1,
                     _id: 0,
                     collegeID: 1
-                } }
+                }
+            }
         ]);
         return { students, totalCount: resultCount };
     }
@@ -163,14 +174,26 @@ async function searchStudent(searchTerm, options) {
             { $match: { username: { $regex: regex }, visibility: "public", onboarded: true } },
             { $skip: options.skip },
             { $limit: options.maxCount },
-            { $project: {
+            {
+                $project: {
                     profile_pic: 1,
                     displayname: 1,
                     bio: 1,
                     username: 1,
                     _id: 0
-                } }
+                }
+            }
         ]);
         return { students, totalCount: resultCount };
     }
 }
+async function updateProfileFields(studentID, updates) {
+    try {
+        await students_1.default.updateOne({ studentID: studentID }, updates);
+        return { ok: true };
+    }
+    catch (error) {
+        return { ok: false, error: error };
+    }
+}
+;

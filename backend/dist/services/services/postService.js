@@ -59,6 +59,12 @@ async function addPost(postData, postType) {
         else if (postType === notes_2.PostType.MCQ) {
             post = await notes_1.mcqsModel.create(postData);
         }
+        else if (postType === notes_2.PostType.LINK) {
+            post = await notes_1.linksModel.create(postData);
+        }
+        else if (postType === notes_2.PostType.FILE) {
+            post = await notes_1.filesModel.create(postData);
+        }
         if (post) {
             await students_1.default.findByIdAndUpdate(postData.ownerDocID, { $push: { owned_notes: post._id } }, { upsert: true, new: true });
             return { ok: true, postID: post._id };
@@ -73,11 +79,10 @@ async function addPost(postData, postType) {
 }
 async function deletePost(postID, postType) {
     try {
-        switch (postType) {
-            case notes_2.PostType.CONTENT:
-                await notes_1.default.deleteOne({ postID: postID });
-                const fileDeleteResponse = await (0, firebaseService_1.deleteFile)(postID);
-                return { ok: fileDeleteResponse.ok, code: !fileDeleteResponse.ok ? "FILE_DELETE_FAIL" : null };
+        if (postType === notes_2.PostType.CONTENT || postType === notes_2.PostType.FILE) {
+            await notes_1.default.deleteOne({ postID: postID });
+            const fileDeleteResponse = await (0, firebaseService_1.deleteFile)(postID);
+            return { ok: fileDeleteResponse.ok, code: !fileDeleteResponse.ok ? "FILE_DELETE_FAIL" : null };
         }
     }
     catch (error) {
@@ -239,7 +244,7 @@ async function searchPosts(searchTerm, options) {
         const posts = await notes_1.default.aggregate([
             { $match: { title: { $regex: regex }, type_: { $ne: "private" } } },
             { $project: {
-                    postID: "$_id",
+                    postID: 1,
                     title: 1
                 } }
         ]);

@@ -29,6 +29,8 @@ const notifications_js_1 = __importDefault(require("./services/apis/notification
 const requests_js_1 = __importDefault(require("./services/apis/requests.js"));
 const auth_js_1 = __importDefault(require("./services/apis/auth.js"));
 const upload_js_1 = __importDefault(require("./services/apis/upload.js"));
+const mcq_1 = __importDefault(require("./services/apis/mcq"));
+const friends_1 = __importDefault(require("./services/apis/friends"));
 (0, dotenv_1.config)({ path: (0, path_1.join)(__dirname, '.env') });
 const app = (0, express_1.default)();
 const server = (0, http_1.createServer)(app);
@@ -78,6 +80,8 @@ app.use('/api/feed', (0, feed_js_1.default)(io));
 app.use('/api/search', (0, search_js_1.default)(io));
 app.use('/api/auth', (0, auth_js_1.default)(io));
 app.use('/api/upload', (0, upload_js_1.default)(io));
+app.use('/api/mcq/', (0, mcq_1.default)(io));
+app.use('/api/friends', (0, friends_1.default)(io));
 app.get('/logout', (req, res) => {
     try {
         req.session.destroy(error => {
