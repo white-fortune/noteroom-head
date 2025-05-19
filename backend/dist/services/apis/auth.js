@@ -9,7 +9,11 @@ const google_auth_library_1 = require("google-auth-library");
 const authService_1 = require("../services/authService");
 const utils_1 = require("../services/utils");
 const lodash_1 = require("lodash");
+const nodemailer_1 = __importDefault(require("nodemailer"));
+const dotenv_1 = require("dotenv");
+const path_1 = require("path");
 const logger_1 = __importDefault(require("../logger"));
+(0, dotenv_1.config)({ path: (0, path_1.join)(__dirname, '../../../.env') });
 const router = (0, express_1.Router)();
 const googleClient = new google_auth_library_1.OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -203,6 +207,31 @@ function authApiRouter(io) {
                 ok: false,
                 message: "Google authentication failed. Please try again.",
             });
+        }
+    });
+    router.post('/password-reset', async (req, res) => {
+        try {
+            const email = req.body.email;
+            if (!email) {
+                res.json({ ok: false });
+                return;
+            }
+            const transport = nodemailer_1.default.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: process.env.NOTEROOM_HELPDESK_GMAIL,
+                    pass: process.env.NOTEROOM_HELPDESK_APP_PASSWORD
+                }
+            });
+            transport.sendMail({
+                to: email,
+                subject: 'Hello World!',
+                text: 'This is debugging purposes and it looks like it works!'
+            });
+            res.json({ ok: true });
+        }
+        catch (error) {
+            res.json({ ok: false });
         }
     });
     return router;
